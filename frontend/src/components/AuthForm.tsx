@@ -182,7 +182,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                   required
                   autoComplete="email"
                   error={Boolean(fieldErrors.email)}
-                  helperText={fieldErrors.email ?? "Use a valid email format, for example name@company.com."}
+                  helperText={
+                    fieldErrors.email ??
+                    (isSignup ? "Use a valid email format, for example name@company.com." : " ")
+                  }
                   onChange={(event) => {
                     setEmail(event.target.value);
                     setFieldErrors((current) => ({ ...current, email: undefined }));
@@ -196,7 +199,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                   required
                   autoComplete={isSignup ? "new-password" : "current-password"}
                   error={Boolean(fieldErrors.password)}
-                  helperText={fieldErrors.password ?? "At least 8 characters with letters and numbers."}
+                  helperText={
+                    fieldErrors.password ??
+                    (isSignup ? "At least 8 characters with letters and numbers." : " ")
+                  }
                   onChange={(event) => {
                     setPassword(event.target.value);
                     setFieldErrors((current) => ({ ...current, password: undefined }));
