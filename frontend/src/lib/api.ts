@@ -4,7 +4,8 @@ export type AuthStatus =
   | "VALIDATION_ERROR"
   | "EMAIL_ALREADY_EXISTS"
   | "USER_NOT_FOUND"
-  | "INVALID_PASSWORD";
+  | "INVALID_PASSWORD"
+  | "NETWORK_ERROR";
 
 export type AuthUser = {
   id: number;
@@ -20,7 +21,7 @@ export type AuthResponse = {
   errors?: string[];
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:3001";
 
 async function requestAuth(
   path: string,
@@ -28,18 +29,29 @@ async function requestAuth(
   password: string,
   confirmPassword?: string
 ): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, ...(confirmPassword ? { confirmPassword } : {}) })
-  });
-  const data = (await response.json()) as AuthResponse;
+  let response: Response;
 
-  if (!response.ok) {
-    return data;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, ...(confirmPassword ? { confirmPassword } : {}) })
+    });
+  } catch {
+    return {
+      status: "NETWORK_ERROR",
+      message: "Cannot connect to the backend service. Please make sure it is running."
+    };
   }
 
-  return data;
+  try {
+    return (await response.json()) as AuthResponse;
+  } catch {
+    return {
+      status: "NETWORK_ERROR",
+      message: "The backend returned an unreadable response."
+    };
+  }
 }
 
 export function signUp(email: string, password: string, confirmPassword: string) {

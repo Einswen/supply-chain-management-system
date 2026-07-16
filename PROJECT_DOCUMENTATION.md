@@ -231,7 +231,7 @@ frontend/src/lib/api.ts
 默认后端地址：
 
 ```ts
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:3001";
 ```
 
 当前封装函数：
@@ -733,13 +733,13 @@ PORT=3001
 前端可选环境变量：
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://127.0.0.1:3001
 ```
 
 如果不配置，前端默认请求：
 
 ```txt
-http://localhost:3001
+http://127.0.0.1:3001
 ```
 
 ## 11. 当前认证流程

@@ -46,13 +46,13 @@ npm run dev
 前端默认请求后端地址：
 
 ```txt
-http://localhost:3001
+http://127.0.0.1:3001
 ```
 
 如需修改，可以配置：
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://127.0.0.1:3001
 ```
 
 ## API

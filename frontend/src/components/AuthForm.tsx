@@ -27,7 +27,8 @@ const apiMessages: Record<string, string> = {
   EMAIL_ALREADY_EXISTS: "This email has already been registered.",
   USER_NOT_FOUND: "No user exists for this email.",
   INVALID_PASSWORD: "The password is incorrect.",
-  VALIDATION_ERROR: "Please check the highlighted fields."
+  VALIDATION_ERROR: "Please check the highlighted fields.",
+  NETWORK_ERROR: "Cannot connect to the backend service. Please make sure it is running."
 };
 
 export function AuthForm({ mode }: { mode: AuthMode }) {
