@@ -5,6 +5,7 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import GroupIcon from "@mui/icons-material/Group";
 import LogoutIcon from "@mui/icons-material/Logout";
+import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 import MenuIcon from "@mui/icons-material/Menu";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
@@ -28,9 +29,11 @@ import {
   Tooltip,
   Typography
 } from "@mui/material";
+import { UserQuickUpdateDialog } from "@/components/UserQuickUpdateDialog";
+import { type AdminUser, type UserInput, updateUser } from "@/lib/api";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export const DRAWER_WIDTH = 260;
 export const DRAWER_COLLAPSED_WIDTH = 76;
@@ -59,14 +62,54 @@ export function NavigationBar({
   const pathname = usePathname();
   const router = useRouter();
   const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null);
+  const [profileUser, setProfileUser] = useState<AdminUser | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const current = navItems.find((item) => pathname.startsWith(item.href))?.href ?? "/dashboard";
   const drawerWidth = collapsed ? DRAWER_COLLAPSED_WIDTH : DRAWER_WIDTH;
   const profileMenuOpen = Boolean(profileAnchor);
+  const profileName = profileUser?.name || "user";
+  const profileRole = profileUser?.titleRole || "Supply Chain Operator";
+  const profileInitial = useMemo(() => getInitial(profileName), [profileName]);
+
+  useEffect(() => {
+    setProfileUser(readStoredUser());
+  }, []);
 
   function handleLogout() {
     window.localStorage.removeItem("auth.user");
     window.localStorage.removeItem("auth.token");
     router.push("/login");
+  }
+
+  function openProfileEditor() {
+    setProfileError(null);
+    setProfileAnchor(null);
+    setProfileOpen(true);
+  }
+
+  async function handleProfileUpdate(input: UserInput) {
+    if (!profileUser) {
+      setProfileError("No signed-in user is available.");
+      return;
+    }
+
+    setProfileSaving(true);
+    setProfileError(null);
+
+    try {
+      const updated = await updateUser(profileUser.id, input);
+      setProfileUser(updated);
+      window.localStorage.setItem("auth.user", JSON.stringify(updated));
+      setProfileOpen(false);
+    } catch (requestError) {
+      setProfileError(
+        requestError instanceof Error ? requestError.message : "Unable to update profile."
+      );
+    } finally {
+      setProfileSaving(false);
+    }
   }
 
   const drawerContent = (isCollapsed: boolean) => (
@@ -234,7 +277,7 @@ export function NavigationBar({
               onClick={(event) => setProfileAnchor(event.currentTarget)}
               sx={{ p: 0.25 }}
             >
-              <Avatar sx={{ width: 36, height: 36 }}>J</Avatar>
+              <Avatar sx={{ width: 36, height: 36 }}>{profileInitial}</Avatar>
             </IconButton>
           </Tooltip>
           <Menu
@@ -256,15 +299,25 @@ export function NavigationBar({
             }}
           >
             <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", px: 2, py: 1.25 }}>
-              <Avatar sx={{ width: 36, height: 36 }}>U</Avatar>
+              <Avatar sx={{ width: 36, height: 36 }}>{profileInitial}</Avatar>
               <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ fontSize: 14, fontWeight: 700 }}>user</Typography>
+                <Typography noWrap sx={{ fontSize: 14, fontWeight: 700 }}>
+                  {profileName}
+                </Typography>
                 <Typography color="text.secondary" sx={{ fontSize: 12 }}>
-                  Supply Chain Operator
+                  {profileRole}
                 </Typography>
               </Box>
             </Stack>
             <Divider />
+            <MenuItem
+              onClick={openProfileEditor}
+              disabled={!profileUser}
+              sx={{ minHeight: 44, gap: 1.25 }}
+            >
+              <ManageAccountsIcon fontSize="small" />
+              Edit profile
+            </MenuItem>
             <MenuItem
               onClick={() => {
                 setProfileAnchor(null);
@@ -316,6 +369,56 @@ export function NavigationBar({
           {drawerContent(collapsed)}
         </Drawer>
       </Box>
+
+      <UserQuickUpdateDialog
+        open={profileOpen}
+        user={profileUser}
+        saving={profileSaving}
+        error={profileError}
+        onClose={() => setProfileOpen(false)}
+        onSubmit={handleProfileUpdate}
+      />
     </>
   );
+}
+
+function readStoredUser(): AdminUser | null {
+  try {
+    const rawUser = window.localStorage.getItem("auth.user");
+
+    if (!rawUser) {
+      return null;
+    }
+
+    return normalizeStoredUser(JSON.parse(rawUser) as Partial<AdminUser>);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeStoredUser(user: Partial<AdminUser>): AdminUser | null {
+  if (!user.id || !user.email) {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    name: user.name ?? "user",
+    email: user.email,
+    titleRole: user.titleRole ?? "Operator",
+    status: user.status ?? "active",
+    phoneNumber: user.phoneNumber ?? "",
+    country: user.country ?? "",
+    stateRegion: user.stateRegion ?? "",
+    city: user.city ?? "",
+    address: user.address ?? "",
+    zipCode: user.zipCode ?? "",
+    company: user.company ?? "",
+    createdAt: user.createdAt ?? "",
+    updatedAt: user.updatedAt ?? ""
+  };
+}
+
+function getInitial(name: string) {
+  return name.trim().charAt(0).toUpperCase() || "U";
 }
