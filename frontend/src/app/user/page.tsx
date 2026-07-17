@@ -32,6 +32,7 @@ import {
   Tooltip,
   Typography
 } from "@mui/material";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { PageShell } from "@/components/PageShell";
 import { UserQuickUpdateDialog } from "@/components/UserQuickUpdateDialog";
 import {
@@ -54,6 +55,10 @@ const statusColors: Record<UserStatus, "success" | "warning" | "default" | "erro
   banned: "error"
 };
 
+type PendingDelete =
+  | { type: "single"; user: AdminUser }
+  | { type: "bulk"; ids: number[]; count: number };
+
 export default function UserPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -66,6 +71,8 @@ export default function UserPage() {
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function loadUsers() {
     setLoading(true);
@@ -157,28 +164,47 @@ export default function UserPage() {
     }
   }
 
-  async function handleDelete(id: number) {
+  async function handleConfirmDelete() {
+    if (!pendingDelete) {
+      return;
+    }
+
+    setDeleting(true);
     setError(null);
 
     try {
-      await deleteUser(id);
-      setUsers((current) => current.filter((user) => user.id !== id));
-      setSelectedIds((current) => current.filter((selectedId) => selectedId !== id));
+      if (pendingDelete.type === "single") {
+        await deleteUser(pendingDelete.user.id);
+        setUsers((current) => current.filter((user) => user.id !== pendingDelete.user.id));
+        setSelectedIds((current) =>
+          current.filter((selectedId) => selectedId !== pendingDelete.user.id)
+        );
+      } else {
+        await deleteUsers(pendingDelete.ids);
+        setUsers((current) => current.filter((user) => !pendingDelete.ids.includes(user.id)));
+        setSelectedIds([]);
+      }
+
+      setPendingDelete(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to delete user.");
+      setError(
+        requestError instanceof Error ? requestError.message : "Unable to delete selected users."
+      );
+    } finally {
+      setDeleting(false);
     }
   }
 
-  async function handleBulkDelete() {
-    setError(null);
+  function requestDeleteUser(user: AdminUser) {
+    setPendingDelete({ type: "single", user });
+  }
 
-    try {
-      await deleteUsers(selectedIds);
-      setUsers((current) => current.filter((user) => !selectedIds.includes(user.id)));
-      setSelectedIds([]);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to delete users.");
+  function requestBulkDelete() {
+    if (selectedIds.length === 0) {
+      return;
     }
+
+    setPendingDelete({ type: "bulk", ids: selectedIds, count: selectedIds.length });
   }
 
   function toggleVisibleUsers(checked: boolean) {
@@ -257,7 +283,7 @@ export default function UserPage() {
               color="error"
               startIcon={<DeleteIcon />}
               disabled={selectedIds.length === 0}
-              onClick={handleBulkDelete}
+              onClick={requestBulkDelete}
             >
               Delete selected
             </Button>
@@ -322,7 +348,7 @@ export default function UserPage() {
                       <IconButton
                         aria-label={`Delete ${user.name}`}
                         color="error"
-                        onClick={() => handleDelete(user.id)}
+                        onClick={() => requestDeleteUser(user)}
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
@@ -368,6 +394,23 @@ export default function UserPage() {
         error={error}
         onClose={closeDialog}
         onSubmit={handleSave}
+      />
+      <ConfirmDeleteDialog
+        open={Boolean(pendingDelete)}
+        title={
+          pendingDelete?.type === "bulk"
+            ? `Delete ${pendingDelete.count} users?`
+            : "Delete user?"
+        }
+        description={
+          pendingDelete?.type === "bulk"
+            ? "This will permanently remove the selected users from the table. This action cannot be undone."
+            : `This will permanently remove ${pendingDelete?.user.name ?? "this user"} from the table. This action cannot be undone.`
+        }
+        confirmLabel={pendingDelete?.type === "bulk" ? "Delete users" : "Delete user"}
+        loading={deleting}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={handleConfirmDelete}
       />
     </PageShell>
   );

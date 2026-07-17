@@ -38,6 +38,7 @@ import {
   Tooltip,
   Typography
 } from "@mui/material";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { PageShell } from "@/components/PageShell";
 import {
   type Company,
@@ -93,6 +94,8 @@ export default function CompanyPage() {
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [pendingDeleteCompany, setPendingDeleteCompany] = useState<Company | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState<CompanyInput>(emptyCompanyForm);
 
   async function loadCompanies() {
@@ -213,15 +216,27 @@ export default function CompanyPage() {
     }
   }
 
-  async function handleDelete(companyCode: string) {
+  async function handleConfirmDelete() {
+    if (!pendingDeleteCompany) {
+      return;
+    }
+
+    setDeleting(true);
     setError(null);
 
     try {
-      await deleteCompany(companyCode);
-      setCompanies((current) => current.filter((company) => company.companyCode !== companyCode));
-      setExpandedCodes((current) => current.filter((code) => code !== companyCode));
+      await deleteCompany(pendingDeleteCompany.companyCode);
+      setCompanies((current) =>
+        current.filter((company) => company.companyCode !== pendingDeleteCompany.companyCode)
+      );
+      setExpandedCodes((current) =>
+        current.filter((code) => code !== pendingDeleteCompany.companyCode)
+      );
+      setPendingDeleteCompany(null);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to delete company.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -372,7 +387,7 @@ export default function CompanyPage() {
                           <IconButton
                             aria-label={`Delete ${company.companyName}`}
                             color="error"
-                            onClick={() => handleDelete(company.companyCode)}
+                            onClick={() => setPendingDeleteCompany(company)}
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
@@ -524,6 +539,18 @@ export default function CompanyPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={Boolean(pendingDeleteCompany)}
+        title="Delete company?"
+        description={`This will permanently remove ${
+          pendingDeleteCompany?.companyName ?? "this company"
+        } from the table. This action cannot be undone.`}
+        confirmLabel="Delete company"
+        loading={deleting}
+        onClose={() => setPendingDeleteCompany(null)}
+        onConfirm={handleConfirmDelete}
+      />
     </PageShell>
   );
 }
