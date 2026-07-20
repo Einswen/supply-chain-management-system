@@ -3,6 +3,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { CompaniesModule } from "./companies/companies.module";
 import { CompanyRelationship } from "./companies/entities/company-relationship.entity";
 import { Company } from "./companies/entities/company.entity";
+import { DashboardModule } from "./dashboard/dashboard.module";
 import { PgvectorProvider } from "./database/pgvector.provider";
 import { UsersModule } from "./users/users.module";
 import { User } from "./users/entities/user.entity";
@@ -20,6 +21,7 @@ import { User } from "./users/entities/user.entity";
       synchronize: true
     }),
     CompaniesModule,
+    DashboardModule,
     UsersModule
   ],
   providers: [PgvectorProvider]

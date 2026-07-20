@@ -1,3 +1,5 @@
+import type { DashboardMetrics } from "./dashboard-data";
+
 export type AuthStatus =
   | "REGISTER_SUCCESS"
   | "LOGIN_SUCCESS"
@@ -215,4 +217,8 @@ export function deleteCompany(companyCode: string) {
     `/companies/${encodeURIComponent(companyCode)}`,
     { method: "DELETE" }
   );
+}
+
+export function getDashboardMetrics() {
+  return requestJson<DashboardMetrics>("/dashboard");
 }
