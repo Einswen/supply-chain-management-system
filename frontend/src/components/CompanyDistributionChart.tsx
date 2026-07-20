@@ -22,9 +22,9 @@ import {
   Tooltip,
   Typography
 } from "@mui/material";
-import type { ChartOptions } from "chart.js";
+import type { Chart, ChartOptions } from "chart.js";
 import { Bar } from "react-chartjs-2";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCompaniesByFilter } from "@/lib/api";
 import {
   type CompanyBarChartQuery,
@@ -74,6 +74,8 @@ export function CompanyDistributionChart() {
   const [result, setResult] = useState<CompanyBarChartResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const cityYAxisRef = useRef<HTMLDivElement>(null);
+  const cityChartRef = useRef<Chart<"bar"> | null>(null);
 
   const query = useMemo<CompanyBarChartQuery>(
     () => ({
@@ -144,6 +146,37 @@ export function CompanyDistributionChart() {
   const activeDimension = dimensionDetails.find((item) => item.value === dimension) ?? dimensionDetails[0];
   const hasFilters = Object.values(filter).some((value) => (Array.isArray(value) ? value.length > 0 : value));
   const options = result?.filterOptions;
+  const isCityDimension = dimension === "city";
+  const cityCategoryWidth = 72;
+  const cityChartWidth = Math.ceil((result?.bars.length ?? 0) * cityCategoryWidth + 24);
+  const yAxis = useMemo(
+    () => createYAxisScale(result?.bars.map((item) => item.count) ?? []),
+    [result?.bars]
+  );
+  const cityChartHeight = isCityDimension ? 456 : 400;
+  const syncCityYAxis = useCallback(() => {
+    const axisRoot = cityYAxisRef.current;
+    const yScale = cityChartRef.current?.scales.y;
+
+    if (!axisRoot || !yScale) return;
+
+    axisRoot.querySelectorAll<HTMLElement>("[data-city-axis-tick]").forEach((tick) => {
+      tick.style.top = `${yScale.getPixelForValue(Number(tick.dataset.cityAxisTick))}px`;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isCityDimension) return;
+
+    const frame = window.requestAnimationFrame(syncCityYAxis);
+    const handleResize = () => window.requestAnimationFrame(syncCityYAxis);
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [cityChartHeight, isCityDimension, syncCityYAxis, yAxis.ticks]);
 
   const chartData = useMemo(
     () => ({
@@ -157,11 +190,13 @@ export function CompanyDistributionChart() {
           borderWidth: 1,
           borderRadius: 4,
           borderSkipped: false,
-          maxBarThickness: 48
+          ...(isCityDimension
+            ? { barThickness: 22, maxBarThickness: 22, categoryPercentage: 1, barPercentage: 1 }
+            : { maxBarThickness: 48 })
         }
       ]
     }),
-    [activeDimension.color, dimension, result?.bars]
+    [activeDimension.color, dimension, isCityDimension, result?.bars]
   );
 
   const chartOptions = useMemo<ChartOptions<"bar">>(
@@ -169,6 +204,7 @@ export function CompanyDistributionChart() {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
+      layout: isCityDimension ? { padding: { top: 8 } } : undefined,
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -179,26 +215,41 @@ export function CompanyDistributionChart() {
           }
         }
       },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            autoSkip: dimension !== "level",
-            maxRotation: 0,
-            minRotation: 0,
-            maxTicksLimit: dimension === "city" ? 12 : 16
+      scales: isCityDimension
+        ? {
+            x: {
+              grid: { display: false },
+              ticks: {
+                display: true,
+                autoSkip: false,
+                minRotation: 45,
+                maxRotation: 45,
+                font: { size: 11 }
+              }
+            },
+            y: {
+              min: 0,
+              max: yAxis.max,
+              border: { display: false },
+              ticks: { display: false, stepSize: yAxis.step },
+              grid: { color: "rgba(83, 91, 111, 0.18)" }
+            }
           }
-        },
-        y: {
-          beginAtZero: true,
-          ticks: {
-            precision: 0,
-            callback: (value) => formatCompactNumber(Number(value))
+        : {
+            x: {
+              grid: { display: false },
+              ticks: { autoSkip: dimension !== "level", maxRotation: 0, minRotation: 0, maxTicksLimit: 16 }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0,
+                callback: (value) => formatCompactNumber(Number(value))
+              }
+            }
           }
-        }
-      }
     }),
-    [dimension]
+    [dimension, isCityDimension, yAxis.max, yAxis.step]
   );
 
   return (
@@ -268,8 +319,23 @@ export function CompanyDistributionChart() {
               <Skeleton variant="text" width="80%" />
             </Stack>
           ) : result?.bars.length ? (
-            <Box sx={{ height: 400, position: "relative", opacity: loading ? 0.48 : 1, transition: "opacity 160ms ease-out" }}>
-              <Bar data={chartData} options={chartOptions} />
+            <Box>
+              <Box sx={{ display: isCityDimension ? "grid" : "block", gridTemplateColumns: isCityDimension ? "56px minmax(0, 1fr)" : undefined, height: cityChartHeight }}>
+                {isCityDimension ? <FixedYAxis axisRef={cityYAxisRef} ticks={yAxis.ticks} max={yAxis.max} height={cityChartHeight} /> : null}
+                <Box sx={{ overflowX: isCityDimension ? "auto" : "visible", overflowY: "hidden", minWidth: 0 }}>
+                  <Box
+                    sx={{
+                      width: isCityDimension ? `max(100%, ${cityChartWidth}px)` : "100%",
+                      height: cityChartHeight,
+                      position: "relative",
+                      opacity: loading ? 0.48 : 1,
+                      transition: "opacity 160ms ease-out"
+                    }}
+                  >
+                    <Bar ref={cityChartRef} data={chartData} options={chartOptions} />
+                  </Box>
+                </Box>
+              </Box>
             </Box>
           ) : (
             <Stack sx={{ height: 400, alignItems: "center", justifyContent: "center", textAlign: "center" }} spacing={1}>
@@ -350,6 +416,54 @@ export function CompanyDistributionChart() {
       </Box>
     </Box>
   );
+}
+
+const FixedYAxis = ({
+  ticks,
+  max,
+  height,
+  axisRef
+}: {
+  ticks: number[];
+  max: number;
+  height: number;
+  axisRef: { current: HTMLDivElement | null };
+}) => {
+  return (
+    <Box ref={axisRef} aria-hidden="true" sx={{ position: "relative", height, overflow: "visible" }}>
+      {ticks.map((tick) => (
+        <Typography
+          key={tick}
+          data-city-axis-tick={tick}
+          color="text.secondary"
+          sx={{
+            position: "absolute",
+            top: `${100 - (tick / max) * 100}%`,
+            right: 6,
+            transform: "translateY(-50%)",
+            fontSize: 11,
+            lineHeight: 1,
+            whiteSpace: "nowrap"
+          }}
+        >
+          {formatCompactNumber(tick)}
+        </Typography>
+      ))}
+    </Box>
+  );
+};
+
+function createYAxisScale(values: number[]) {
+  const highestValue = Math.max(...values, 1);
+  const rawStep = highestValue / 5;
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const normalized = rawStep / magnitude;
+  const niceMultiplier = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  const step = niceMultiplier * magnitude;
+  const max = Math.ceil(highestValue / step) * step;
+  const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_value, index) => index * step);
+
+  return { max, step, ticks };
 }
 
 function MultiSelect<T extends string | number>({
