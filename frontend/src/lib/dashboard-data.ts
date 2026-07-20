@@ -29,6 +29,36 @@ export type DashboardMetrics = {
   updatedAt: string;
 };
 
+export type CompanyChartDimension = "level" | "country" | "city";
+
+export type CompanyBarChartQuery = {
+  dimension: CompanyChartDimension;
+  filter: {
+    level?: number[];
+    country?: string[];
+    city?: string[];
+    founded_year?: { start?: number; end?: number };
+    annual_revenue?: { min?: number; max?: number };
+    employees?: { min?: number; max?: number };
+  };
+};
+
+export type CompanyBarChartResult = {
+  dimension: CompanyChartDimension;
+  bars: Array<{ label: string; count: number }>;
+  matchedCompanies: number;
+  filterOptions: {
+    levels: number[];
+    countries: string[];
+    cities: string[];
+    ranges: {
+      foundedYear: { min: number | null; max: number | null };
+      annualRevenue: { min: number | null; max: number | null };
+      employees: { min: number | null; max: number | null };
+    };
+  };
+};
+
 export const dashboardDummyCompanies: DashboardCompanyRecord[] = [
   {
     companyCode: "C0",
@@ -165,17 +195,38 @@ export function calculateDashboardMetrics(companies: DashboardCompanyRecord[]): 
 }
 
 export function formatCompactNumber(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    notation: "compact",
-    maximumFractionDigits: value >= 1000 ? 1 : 0
-  }).format(value);
+  return formatCompactValue(value);
 }
 
 export function formatCompactCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    notation: "compact",
-    maximumFractionDigits: value >= 1000 ? 1 : 0
-  }).format(value);
+  if (Math.abs(value) < 1000) {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0
+    }).format(value);
+  }
+
+  return `$${formatCompactValue(value)}`;
+}
+
+function formatCompactValue(value: number) {
+  const units = [
+    { suffix: "T", divisor: 1_000_000_000_000 },
+    { suffix: "B", divisor: 1_000_000_000 },
+    { suffix: "M", divisor: 1_000_000 },
+    { suffix: "K", divisor: 1_000 }
+  ];
+  const sign = value < 0 ? "-" : "";
+  const absoluteValue = Math.abs(value);
+  const unit = units.find((item) => absoluteValue >= item.divisor);
+
+  if (!unit) {
+    return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value)}`;
+  }
+
+  const truncated = Math.floor((absoluteValue / unit.divisor) * 10) / 10;
+  const compactNumber = truncated.toFixed(1).replace(/\.0$/, "");
+
+  return `${sign}${compactNumber}${unit.suffix}`;
 }

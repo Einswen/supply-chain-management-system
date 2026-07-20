@@ -1,4 +1,8 @@
-import type { DashboardMetrics } from "./dashboard-data";
+import type {
+  CompanyBarChartQuery,
+  CompanyBarChartResult,
+  DashboardMetrics
+} from "./dashboard-data";
 
 export type AuthStatus =
   | "REGISTER_SUCCESS"
@@ -221,4 +225,11 @@ export function deleteCompany(companyCode: string) {
 
 export function getDashboardMetrics() {
   return requestJson<DashboardMetrics>("/dashboard");
+}
+
+export function getCompaniesByFilter(query: CompanyBarChartQuery) {
+  return requestJson<CompanyBarChartResult>("/dashboard/companies/filter", {
+    method: "POST",
+    body: JSON.stringify(query)
+  });
 }

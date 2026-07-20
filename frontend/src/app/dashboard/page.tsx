@@ -20,6 +20,7 @@ import {
 } from "@mui/material";
 import {
   ArcElement,
+  BarElement,
   CategoryScale,
   Chart as ChartJS,
   Filler,
@@ -31,6 +32,7 @@ import {
 } from "chart.js";
 import type { ChartOptions } from "chart.js";
 import { Doughnut, Line } from "react-chartjs-2";
+import { CompanyDistributionChart } from "@/components/CompanyDistributionChart";
 import { PageShell } from "@/components/PageShell";
 import { getDashboardMetrics } from "@/lib/api";
 import {
@@ -45,6 +47,7 @@ import { useEffect, useMemo, useState } from "react";
 
 ChartJS.register(
   ArcElement,
+  BarElement,
   CategoryScale,
   Filler,
   Legend,
@@ -339,6 +342,8 @@ export default function DashboardPage() {
             </Box>
           </ChartPanel>
         </Box>
+
+        <CompanyDistributionChart />
       </Stack>
     </PageShell>
   );
