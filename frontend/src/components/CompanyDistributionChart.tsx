@@ -341,7 +341,11 @@ export function CompanyDistributionChart() {
           ) : result?.bars.length ? (
             chartView === "bubble" ? (
               result.hierarchy ? (
-                <CompanyHierarchyBubbleChart data={result.hierarchy} matchedCompanies={result.matchedCompanies} />
+                <CompanyHierarchyBubbleChart
+                  data={result.hierarchy}
+                  matchedCompanies={result.matchedCompanies}
+                  hasActiveFilters={hasFilters}
+                />
               ) : (
                 <Stack spacing={1.5} sx={{ height: 400, justifyContent: "flex-end" }}>
                   <Skeleton variant="rounded" height="60%" />
