@@ -50,8 +50,9 @@ export function CompanyHierarchyBubbleChart({ data, matchedCompanies }: { data: 
       .size([chartSize, chartSize])
       .padding(3)(
         hierarchy(data)
-          // Each company contributes equally so packing reflects relationship branches, not company metadata.
-          .sum((node) => (node.children.length ? 0 : 1))
+          // Emphasize revenue differences while preserving the relative ordering.
+          // Parent bubbles aggregate their own and downstream weighted revenue.
+          .sum((node) => Math.pow(Math.max(node.annualRevenue, 1), 1.8))
       );
     const canShowLabel = (node: BubbleNode, target: BubbleNode) =>
       node.parent === target && node.r * (chartSize / (target.r * 2)) >= minimumLabelRadius;
