@@ -33,6 +33,7 @@ export type CompanyChartDimension = "level" | "country" | "city";
 
 export type CompanyBarChartQuery = {
   dimension: CompanyChartDimension;
+  includeHierarchy?: boolean;
   filter: {
     level?: number[];
     country?: string[];
@@ -47,6 +48,7 @@ export type CompanyBarChartResult = {
   dimension: CompanyChartDimension;
   bars: Array<{ label: string; count: number }>;
   matchedCompanies: number;
+  hierarchy?: CompanyHierarchyNode;
   filterOptions: {
     levels: number[];
     countries: string[];
@@ -57,6 +59,18 @@ export type CompanyBarChartResult = {
       employees: { min: number | null; max: number | null };
     };
   };
+};
+
+export type CompanyHierarchyNode = {
+  companyCode: string;
+  name: string;
+  level: number;
+  country: string | null;
+  city: string | null;
+  foundedYear: number | null;
+  annualRevenue: number;
+  employees: number;
+  children: CompanyHierarchyNode[];
 };
 
 export const dashboardDummyCompanies: DashboardCompanyRecord[] = [

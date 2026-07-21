@@ -1,6 +1,7 @@
 import { Type } from "class-transformer";
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsNumber,
@@ -82,4 +83,8 @@ export class CompanyBarChartDto {
   @ValidateNested()
   @Type(() => CompanyChartFilterDto)
   filter?: CompanyChartFilterDto;
+
+  @IsOptional()
+  @IsBoolean()
+  includeHierarchy?: boolean;
 }

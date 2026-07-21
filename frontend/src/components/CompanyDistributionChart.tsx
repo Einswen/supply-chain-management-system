@@ -4,6 +4,7 @@ import ClearAllIcon from "@mui/icons-material/ClearAll";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import PublicIcon from "@mui/icons-material/Public";
 import ApartmentIcon from "@mui/icons-material/Apartment";
+import BubbleChartIcon from "@mui/icons-material/BubbleChart";
 import LayersIcon from "@mui/icons-material/Layers";
 import {
   Alert,
@@ -16,6 +17,8 @@ import {
   Skeleton,
   Slider,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -25,6 +28,7 @@ import {
 import type { Chart, ChartOptions } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CompanyHierarchyBubbleChart } from "@/components/CompanyHierarchyBubbleChart";
 import { getCompaniesByFilter } from "@/lib/api";
 import {
   type CompanyBarChartQuery,
@@ -70,6 +74,7 @@ const dimensionDetails: Array<{
 
 export function CompanyDistributionChart() {
   const [dimension, setDimension] = useState<CompanyChartDimension>("level");
+  const [chartView, setChartView] = useState<"bar" | "bubble">("bar");
   const [filter, setFilter] = useState<FilterForm>(emptyFilter);
   const [result, setResult] = useState<CompanyBarChartResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,6 +85,7 @@ export function CompanyDistributionChart() {
   const query = useMemo<CompanyBarChartQuery>(
     () => ({
       dimension,
+      includeHierarchy: chartView === "bubble",
       filter: {
         ...(filter.level.length ? { level: filter.level } : {}),
         ...(filter.country.length ? { country: filter.country } : {}),
@@ -110,7 +116,7 @@ export function CompanyDistributionChart() {
           : {})
       }
     }),
-    [dimension, filter]
+    [chartView, dimension, filter]
   );
 
   useEffect(() => {
@@ -269,7 +275,9 @@ export function CompanyDistributionChart() {
               Company distribution
             </Typography>
             <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: 13 }}>
-              Company count grouped by the selected dimension.
+              {chartView === "bar"
+                ? "Company count grouped by the selected dimension."
+                : "Supplier relationships for companies matching the current filters."}
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}>
@@ -293,21 +301,33 @@ export function CompanyDistributionChart() {
           </Stack>
         </Stack>
 
-        <ToggleButtonGroup
-          aria-label="Chart dimension"
-          exclusive
-          value={dimension}
-          onChange={(_event, value: CompanyChartDimension | null) => value && setDimension(value)}
-          size="small"
-          sx={{ mt: 2, flexWrap: "wrap" }}
+        <Tabs
+          value={chartView}
+          onChange={(_event, value: "bar" | "bubble") => setChartView(value)}
+          aria-label="Company chart view"
+          sx={{ mt: 1.5, minHeight: 38 }}
         >
-          {dimensionDetails.map((item) => (
-            <ToggleButton key={item.value} value={item.value} sx={{ gap: 0.75, px: 1.25 }}>
-              {item.icon}
-              {item.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+          <Tab icon={<LayersIcon fontSize="small" />} iconPosition="start" label="Bar chart" value="bar" sx={{ minHeight: 38, textTransform: "none" }} />
+          <Tab icon={<BubbleChartIcon fontSize="small" />} iconPosition="start" label="Hierarchy" value="bubble" sx={{ minHeight: 38, textTransform: "none" }} />
+        </Tabs>
+
+        {chartView === "bar" ? (
+          <ToggleButtonGroup
+            aria-label="Chart dimension"
+            exclusive
+            value={dimension}
+            onChange={(_event, value: CompanyChartDimension | null) => value && setDimension(value)}
+            size="small"
+            sx={{ mt: 1.5, flexWrap: "wrap" }}
+          >
+            {dimensionDetails.map((item) => (
+              <ToggleButton key={item.value} value={item.value} sx={{ gap: 0.75, px: 1.25 }}>
+                {item.icon}
+                {item.label}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        ) : null}
       </Box>
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1fr) 360px" }, minHeight: 480 }}>
@@ -319,7 +339,17 @@ export function CompanyDistributionChart() {
               <Skeleton variant="text" width="80%" />
             </Stack>
           ) : result?.bars.length ? (
-            <Box>
+            chartView === "bubble" ? (
+              result.hierarchy ? (
+                <CompanyHierarchyBubbleChart data={result.hierarchy} matchedCompanies={result.matchedCompanies} />
+              ) : (
+                <Stack spacing={1.5} sx={{ height: 400, justifyContent: "flex-end" }}>
+                  <Skeleton variant="rounded" height="60%" />
+                  <Skeleton variant="text" width="80%" />
+                </Stack>
+              )
+            ) : (
+              <Box>
               <Box sx={{ display: isCityDimension ? "grid" : "block", gridTemplateColumns: isCityDimension ? "56px minmax(0, 1fr)" : undefined, height: cityChartHeight }}>
                 {isCityDimension ? <FixedYAxis axisRef={cityYAxisRef} ticks={yAxis.ticks} max={yAxis.max} height={cityChartHeight} /> : null}
                 <Box sx={{ overflowX: isCityDimension ? "auto" : "visible", overflowY: "hidden", minWidth: 0 }}>
@@ -336,7 +366,8 @@ export function CompanyDistributionChart() {
                   </Box>
                 </Box>
               </Box>
-            </Box>
+              </Box>
+            )
           ) : (
             <Stack sx={{ height: 400, alignItems: "center", justifyContent: "center", textAlign: "center" }} spacing={1}>
               <FilterAltIcon color="disabled" sx={{ fontSize: 34 }} />
